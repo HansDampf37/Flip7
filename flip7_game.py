@@ -1,5 +1,6 @@
 import random
 from collections import OrderedDict
+import copy
 
 
 class Flip7Game:
@@ -129,6 +130,19 @@ class Flip7Game:
         """Returns the score change caused by the last in_() call."""
         return self.last_score_diff
 
+    def _sample_transition(self) -> int:
+        deep_copy = copy.deepcopy(self)
+        random.shuffle(deep_copy.stack)
+        deep_copy.in_()
+        return deep_copy.get_score_difference()
+
+    def mc_sample_expected_score_difference_of_in(self, n: int = 100) -> int:
+        expected_value = 0
+        for _ in range(n):
+            expected_value += self._sample_transition()
+        return expected_value / n
+
+
 
 if __name__ == "__main__":
     game = Flip7Game()
@@ -137,6 +151,7 @@ if __name__ == "__main__":
     while not game.round_over:
         print("Current hand:", game.hand)
         print("Card counts:", dict(game.card_counts_in_hand))
+        print("Expected score:", game.mc_sample_expected_score_difference_of_in(1000))
         if input("Continue (Y/N)? ").strip().lower() in ["yes", "y"]:
             game.in_()
             print("Last score diff:", game.get_score_difference())

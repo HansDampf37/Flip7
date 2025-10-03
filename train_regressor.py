@@ -7,7 +7,7 @@ from tqdm import tqdm
 from flip7_game import Flip7Game
 
 
-def create_dataset(dataset_size: int = 50_000) -> TensorDataset:
+def create_dataset(dataset_size: int = 5_000) -> TensorDataset:
     """
     Generate a dataset of game states and score differences.
     Each sample = (card_counts_in_hand, score difference after drawing one card).
@@ -22,8 +22,8 @@ def create_dataset(dataset_size: int = 50_000) -> TensorDataset:
 
         # Observation: counts in fixed CARD_TYPES order
         observation = np.array([game.card_counts_in_hand[c] for c in Flip7Game.CARD_TYPES], dtype=np.float32)
+        value_diff = np.array([game.mc_sample_expected_score_difference_of_in(200)], dtype=np.float32)
         game.in_()
-        value_diff = np.array([game.get_score_difference()], dtype=np.float32)
 
         observations.append(observation)
         value_diffs.append(value_diff)
@@ -87,55 +87,26 @@ def train(
             print(f"Epoch {epoch:3d} | Train Loss: {avg_train_loss:.6f}")
 
 
-def evaluate(model: nn.Module, num_moves: int = 1000, device: str = None):
+def evaluate(policy, num_moves: int = 1000):
     """
-    Run a simple greedy evaluation:
-    - If predicted score diff > 0, take the move.
-    - Otherwise reset.
+    Evaluate a policy. The policy should be a function that takes a flip7 game instance and returns true or false.
     """
-    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    model.eval()
-
     game = Flip7Game()
     total_score = 0
     round_scores = []
 
-    with torch.no_grad():
-        for _ in range(num_moves):
-            if game.round_over:
-                round_scores.append(game.get_score())
-                game.reset()
+    for _ in tqdm(range(num_moves)):
+        if game.round_over:
+            round_scores.append(game.get_score())
+            game.reset()
 
-            obs = np.array([game.card_counts_in_hand[c] for c in Flip7Game.CARD_TYPES], dtype=np.float32)
-            observation = torch.tensor(obs).unsqueeze(0).to(device)
-            prediction = model(observation).item()
-
-            if prediction > 0:
-                game.in_()
-                total_score += game.get_score_difference()
-            else:
-                round_scores.append(game.get_score())
-                game.reset()
+        if policy(game):
+            game.in_()
+            total_score += game.get_score_difference()
+        else:
+            round_scores.append(game.get_score())
+            game.reset()
 
     print(f"Evaluation complete: \n\tAvg score per move: {total_score / num_moves:.2f}"
           f"\n\tAvg score per round: {sum(round_scores) / len(round_scores) :.2f}")
-
-
-# Example model definition
-_model = nn.Sequential(
-    nn.Linear(Flip7Game.NUM_CARDS, 64),
-    nn.ReLU(),
-    nn.Linear(64, 32),
-    nn.ReLU(),
-    nn.Linear(32, 1),
-)
-
-if __name__ == "__main__":
-    # Smaller dataset for a smoke test
-    train_ds = create_dataset(50_000)
-    test_ds = create_dataset(10_000)
-
-    evaluate(_model, num_moves=500)
-    train(_model, train_ds, test_ds, num_epochs=30, batch_size=64, lr=1e-3)
-    evaluate(_model, num_moves=500)
+    return round_scores
