@@ -3,7 +3,15 @@ from collections import OrderedDict
 
 
 class Flip7Game:
-    NUM_CARDS = 22
+    """Flip7 card game simulation environment."""
+
+    # Explicit card ordering for consistent feature encoding
+    CARD_TYPES = (
+        list(range(13))  # 0–12 numbers
+        + ["+2", "+4", "+6", "+8", "+10", "x2"]
+        + ["Second Chance", "Flip Three", "Freeze"]
+    )
+    NUM_CARDS = len(CARD_TYPES)
 
     def __init__(self):
         self._init_deck_definition()
@@ -17,7 +25,7 @@ class Flip7Game:
         for i in range(13):
             self.card_frequencies[i] = max(1, i)
 
-        # Modifier cards (example counts, can be tweaked)
+        # Modifier cards
         self.card_frequencies.update({
             "+2": 4,
             "+4": 3,
@@ -35,15 +43,17 @@ class Flip7Game:
         })
 
     def reset(self):
-        """Resets the game state: full stack, empty hand, score = 0."""
+        """Resets the game state: full shuffled stack, empty hand, zeroed score."""
+        # Create fresh shuffled stack
         self.stack = []
         for card, count in self.card_frequencies.items():
-            self.stack.extend([card] * count)
+            self.stack += [card] * count
         random.shuffle(self.stack)
 
+        # Reset state
         self.round_over = False
         self.hand = []
-        self.card_counts_in_hand = OrderedDict({ card: 0 for card in self.card_frequencies.keys() })
+        self.card_counts_in_hand = OrderedDict({card: 0 for card in self.CARD_TYPES})
         self.unique_numbers = set()
         self.has_second_chance = False
         self.score = 0
@@ -52,13 +62,17 @@ class Flip7Game:
         self.last_score_diff = 0
         self.pending_flip_three = 0
 
-    def get_score(self):
+    def get_score(self) -> int:
+        """Returns current score after applying modifiers."""
         return self.score * self.multiplicative_modifier + self.additive_modifier
 
     def in_(self):
-        """Draws one card from the stack and updates game state accordingly."""
+        """Draw one card and update state accordingly."""
         if self.round_over:
             raise RuntimeError("Round is already over")
+        if not self.stack:
+            self.round_over = True
+            return
 
         prev_score = self.get_score()
         card = self.stack.pop()
@@ -68,7 +82,6 @@ class Flip7Game:
         # Action: Flip Three
         if card == "Flip Three":
             self.pending_flip_three += 3
-            self._draw_pending_flip_three()
 
         # Action: Freeze
         elif card == "Freeze":
@@ -81,7 +94,6 @@ class Flip7Game:
         # Modifier cards
         elif isinstance(card, str) and card.startswith("+"):
             self.additive_modifier += int(card[1:])
-
         elif isinstance(card, str) and card.startswith("x"):
             self.multiplicative_modifier *= int(card[1:])
 
@@ -90,9 +102,9 @@ class Flip7Game:
             if card in self.unique_numbers:
                 if self.has_second_chance:
                     self.has_second_chance = False
-                    # Do not add card to unique set, ignore duplicate
+                    # Ignore duplicate safely
                 else:
-                    # Bust: round ends, score reset
+                    # Bust: reset score and end round
                     self.round_over = True
                     self.score = 0
                     self.multiplicative_modifier = 1
@@ -101,21 +113,20 @@ class Flip7Game:
                 self.unique_numbers.add(card)
                 self.score += card
 
-        # Check Flip 7
+        # Check Flip7 bonus
         if not self.round_over and len(self.unique_numbers) == 7:
-            self.score += 15  # Flip 7 bonus
+            self.score += 15
             self.round_over = True
+
+        # Handle any pending Flip Three draws iteratively
+        while self.pending_flip_three > 0 and not self.round_over and self.stack:
+            self.pending_flip_three -= 1
+            self.in_()  # safe because loop ensures bounded recursion
 
         self.last_score_diff = self.get_score() - prev_score
 
-    def _draw_pending_flip_three(self):
-        """Handles multiple draws when Flip Three is triggered."""
-        while self.pending_flip_three > 0 and not self.round_over and self.stack:
-            self.pending_flip_three -= 1
-            self.in_()  # Recursive draw, actions handled individually
-
-    def get_score_difference(self):
-        """Returns the change in score caused by the last in_() call."""
+    def get_score_difference(self) -> int:
+        """Returns the score change caused by the last in_() call."""
         return self.last_score_diff
 
 
@@ -124,13 +135,14 @@ if __name__ == "__main__":
     game.reset()
 
     while not game.round_over:
-        print("Current hand: ", game.hand)
-        print("Current hand: ", game.card_counts_in_hand)
-        if input("Continue (Y/N)?").lower() in ["yes", "y"]:
+        print("Current hand:", game.hand)
+        print("Card counts:", dict(game.card_counts_in_hand))
+        if input("Continue (Y/N)? ").strip().lower() in ["yes", "y"]:
             game.in_()
             print("Last score diff:", game.get_score_difference())
+            print("Score:", game.get_score())
         else:
             break
 
-    print("Final score:", game.score)
+    print("Final score:", game.get_score())
     print("Cards in hand:", game.hand)
