@@ -39,8 +39,8 @@ class Flip7Game:
         # Action cards
         self.card_frequencies.update({
             "Second Chance": 3,
-            "Flip Three": 2,
-            "Freeze": 2
+            "Flip Three": 3,
+            "Freeze": 3
         })
 
     def reset(self):
@@ -103,6 +103,9 @@ class Flip7Game:
             if card in self.unique_numbers:
                 if self.has_second_chance:
                     self.has_second_chance = False
+                    self.hand.remove(card)
+                    self.card_counts_in_hand["Second Chance"] -= 1
+                    self.hand.remove("Second Chance")
                     # Ignore duplicate safely
                 else:
                     # Bust: reset score and end round
@@ -137,6 +140,9 @@ class Flip7Game:
         return deep_copy.get_score_difference()
 
     def mc_sample_expected_score_difference_of_in(self, n: int = 100) -> int:
+        if self.round_over:
+            return 0
+
         expected_value = 0
         for _ in range(n):
             expected_value += self._sample_transition()
