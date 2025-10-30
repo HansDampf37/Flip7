@@ -1,9 +1,9 @@
 import numpy as np
 import torch
-
-from flip7_game import Flip7Game
-from regressor import Flip7Model
 from colorama import Fore, Style, init
+
+from src.flip7_game import Flip7Game
+from src.regressor import Flip7Model
 
 init(autoreset=True)
 
@@ -12,7 +12,7 @@ class Flip7Helper:
     def __init__(self):
         self.game = Flip7Game()
         self.model = Flip7Model()
-        self.model.load_state_dict(torch.load("model", weights_only=True))
+        self.model.load_state_dict(torch.load("models/model", weights_only=True))
         self.model.eval()
 
     def on_draw_card(self, card):
@@ -56,7 +56,7 @@ def main():
           "--------------------------------------------------------------------------------------------------\n"
           "Add cards to your hand with 'add <card1>,<card2>,<card3>' for example 'add +2', 'add 7,12' or 'add 10,Freeze'.\n"
           "Instead of 'd Flip Three' you should just add the three cards directly.\n"
-          "Remove cards from the stack with 'rem <card1>,<card2>,<card3>,...' for example 'rem Second Chance', or 'rem 6,7'")
+          "Remove cards from the stack with 'rm <card1>,<card2>,<card3>,...' for example 'rm Second Chance', or 'rm 6,7'")
 
     def preprocess_card(card: str):
         if card.startswith("+") or card.startswith("x"):
@@ -78,7 +78,7 @@ def main():
             cards = [preprocess_card(card) for card in args.split(",")]
             for card in cards:
                 flip7.on_draw_card(card)
-        elif command == "rem":
+        elif command == "rm":
             cards = [preprocess_card(card) for card in args.split(",")]
             for card in cards:
                 flip7.on_opp_draw_card(card)

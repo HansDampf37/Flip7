@@ -4,7 +4,7 @@ from torch import nn
 from torch.utils.data import TensorDataset, Dataset, DataLoader
 from tqdm import tqdm
 
-from flip7_game import Flip7Game
+from src.flip7_game import Flip7Game
 
 
 def create_dataset(dataset_size: int = 5_000) -> TensorDataset:

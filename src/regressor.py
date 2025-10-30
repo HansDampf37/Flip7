@@ -1,6 +1,6 @@
 from torch import nn
 
-from flip7_game import Flip7Game
+from src.flip7_game import Flip7Game
 
 
 class Flip7Model(nn.Module):
