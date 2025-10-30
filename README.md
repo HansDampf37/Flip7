@@ -41,13 +41,13 @@ Approach
 --------
 This project uses two related but distinct approaches to estimate the value of taking the `in_()` action from a given game state:
 
-### Monte‑Carlo (ground truth)
-- The Monte‑Carlo (MC) procedure is used as a ground-truth estimator for the expected immediate score change when calling `in_()` from the current state.
+### Monte‑Carlo
+- The Monte‑Carlo (MC) procedure is used as an estimator for the expected immediate score change when calling `in_()` from the current state.
 - It works by repeatedly sampling transitions from the current state: for each sample a deep copy of the game state is drawn (the code shuffles the copy's stack), the `in_()` operation is executed on the copy, and the observed score difference is recorded. Averaging these sampled score differences produces an empirical estimate of the expected value.
-- This method requires the full `Flip7Game` object and is computationally expensive (cost scales linearly with the number of samples n) but is unbiased in the limit n → ∞.
+- This method requires the full `Flip7Game` object (its cost scales linearly with the number of samples n) but is unbiased in the limit n → ∞.
 
-Let $ s $ denote the current game state, and let $ p(c \mid s) $ be the probability distribution over cards $ c $ that can be drawn given $ s $.  
-Define $ \Delta(c, s) $ as the score change resulting from drawing card $ c $ in state $ s $.  
+**Formally:** Let $s$ denote the current game state, and let $p(c \mid s)$ be the probability distribution over cards $c$ that can be drawn given $s$.  
+Define $\Delta(c, s)$ as the score change resulting from drawing card $c$ in state $s$.  
 The true expected immediate score change is:
 
 $$
@@ -55,7 +55,7 @@ $$
 $$
 
 Since this integral is intractable in practice, we approximate it by Monte Carlo sampling.  
-Drawing $ n $ independent samples $ c_1, \ldots, c_n \sim p(c \mid s) $, we obtain the unbiased estimator:
+Drawing $n$ independent samples $c_1, \ldots, c_n \sim p(c \mid s)$, we obtain the unbiased estimator:
 
 $$
 \hat{\mathbb{E}}[\Delta \mid s] = \frac{1}{n} \sum_{i=1}^n \Delta(c_i, s)
@@ -67,7 +67,7 @@ $$
 \Delta(c_i, s) = \text{score}(s \oplus c_i) - \text{score}(s)
 $$
 
-represents the simulated score difference when drawing $ c_i $ from the current state.
+represents the simulated score difference when drawing $c_i$ from the current state.
 ### Learned model
 - The learned model (`Flip7Model` in `src/regressor.py`) is a small MLP trained to predict the same quantity that the MC procedure estimates: the expected immediate score change $\mathbb{E}[\Delta | s]$, but using a compact feature vector (counts of cards in hand ordered by `Flip7Game.CARD_TYPES`).
 - Motivation: the learned model enables fast inference and lets you run a policy even when you do not have access to a `Flip7Game` simulator.
